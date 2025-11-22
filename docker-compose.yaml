@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydatabase"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: next_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Next.js will see these at build + runtime
+      DATABASE_URL: postgres://myuser:mypassword@db:5432/mydatabase
+      # Optional, but good to set:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    # If you're actively developing and want live reload, you can mount source:
+    # volumes:
+    #   - ./web:/app
+
+volumes:
+  postgres_data:
