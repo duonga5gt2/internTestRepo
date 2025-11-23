@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withTransaction } from '@/lib/db';
+import { withTransaction, query } from '@/lib/db';
 import {
   ContactInput,
   PropertyInput,
@@ -17,6 +17,37 @@ interface MaintenanceBody {
   description: string;
   urgency?: Urgency;
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const limitParam = searchParams.get('limit');
+    const limit = Math.min(Number(limitParam || '20') || 20, 100);
+
+    const result = await query(
+      `
+      SELECT *
+      FROM realestate.maintenance_requests
+      ORDER BY created_at DESC
+      LIMIT $1
+      `,
+      [limit],
+    );
+
+    return NextResponse.json(
+      { maintenanceRequests: result.rows },
+      { status: 200 },
+    );
+  } catch (err) {
+    console.error('Error fetching maintenance requests', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
+  }
+}
+
+
 
 export async function POST(req: NextRequest) {
   try {
