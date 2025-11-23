@@ -22,7 +22,7 @@ services:
 
   web:
     build:
-      context: ./web
+      context: ./
       dockerfile: Dockerfile
     container_name: next_app
     restart: unless-stopped
@@ -36,9 +36,7 @@ services:
       NODE_ENV: production
     ports:
       - "3000:3000"
-    # If you're actively developing and want live reload, you can mount source:
-    # volumes:
-    #   - ./web:/app
+
 
 volumes:
   postgres_data:
