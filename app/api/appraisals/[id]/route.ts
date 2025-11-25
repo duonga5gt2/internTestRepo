@@ -23,10 +23,11 @@ function parseIdOr400(idStr: string) {
 // PATCH /api/appraisals/:id
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } },
+    ctx: { params: Promise<{ id: string }> },
 ) {
     try {
-        const { error, id } = parseIdOr400(params.id);
+        const { id: idParam } = await ctx.params
+        const { error, id } = parseIdOr400(idParam);
         if (error || id === null) {
             return NextResponse.json({ error }, { status: 400 });
         }
@@ -98,10 +99,11 @@ export async function PATCH(
 // DELETE /api/appraisals/:id
 export async function DELETE(
     _req: NextRequest,
-    { params }: { params: { id: string } },
+    ctx: { params: Promise<{ id: string }> },
 ) {
     try {
-        const { error, id } = parseIdOr400(params.id);
+        const { id: idParam } = await ctx.params
+        const { error, id } = parseIdOr400(idParam);
         if (error || id === null) {
             return NextResponse.json({ error }, { status: 400 });
         }
