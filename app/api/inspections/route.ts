@@ -13,23 +13,50 @@ interface InspectionRequestBody {
   scheduledAt: string; // ISO string
   notes?: string;
 }
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const limitParam = searchParams.get('limit');
     const limit = Math.min(Number(limitParam || '20') || 20, 100);
 
-    const result = await query(
+    const mobile = searchParams.get('mobile') ?? undefined;
+    const suburb = searchParams.get('suburb') ?? undefined;
+    const state = searchParams.get('state') ?? undefined;
+
+    const params: any[] = [limit];
+    let where = '1=1';
+    let idx = 1;
+    if (mobile) {
+      where += ` AND c.mobile = $${++idx}`;
+      params.push(mobile);
+    }
+    if (suburb) {
+      where += ` AND p.suburb ILIKE $${++idx}`;
+      params.push(suburb);
+    }
+    if (state) {
+      where += ` AND p.state = $${++idx}`;
+      params.push(state);
+    }
+
+    const { rows } = await query(
       `
-      SELECT *
-      FROM realestate.inspections
-      ORDER BY created_at DESC
+      SELECT
+        i.*,
+        to_jsonb(c.*) AS contact,
+        to_jsonb(p.*) AS property
+      FROM realestate.inspections i
+      JOIN realestate.contacts c ON c.id = i.contact_id
+      JOIN realestate.properties p ON p.id = i.property_id
+      WHERE ${where}
+      ORDER BY i.scheduled_at DESC
       LIMIT $1
       `,
-      [limit],
+      params,
     );
 
-    return NextResponse.json({ inspections: result.rows }, { status: 200 });
+    return NextResponse.json({ inspections: rows }, { status: 200 });
   } catch (err) {
     console.error('Error fetching inspections', err);
     return NextResponse.json(
@@ -38,6 +65,7 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as InspectionRequestBody;
@@ -66,7 +94,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await withTransaction(async (client) => {
+    const inspection = await withTransaction(async (client) => {
       const contactId = await upsertContact(client, body.contact, 'BUYER');
       const propertyId = await upsertProperty(client, body.property);
 
@@ -80,7 +108,6 @@ export async function POST(req: NextRequest) {
         [contactId, propertyId, body.scheduledAt, body.notes ?? null],
       );
 
-      // Also create/attach a BUYER lead
       await client.query(
         `
         INSERT INTO realestate.leads
@@ -91,14 +118,14 @@ export async function POST(req: NextRequest) {
           contactId,
           propertyId,
           body.notes ??
-            'Buyer booked inspection via AI assistant.',
+          'Buyer booked inspection via AI assistant.',
         ],
       );
 
       return inspections[0];
     });
 
-    return NextResponse.json({ inspection: result }, { status: 201 });
+    return NextResponse.json({ inspection }, { status: 201 });
   } catch (err) {
     console.error('Error creating inspection', err);
     return NextResponse.json(
