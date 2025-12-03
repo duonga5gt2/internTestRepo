@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as InspectionRequestBody;
-
+    console.log(body)
     if (!body.contact?.fullName || !body.contact?.mobile) {
       return NextResponse.json(
         { error: 'contact.fullName and contact.mobile are required' },
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('Error creating inspection', err);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', time: Date.now() },
       { status: 500 },
     );
   }
